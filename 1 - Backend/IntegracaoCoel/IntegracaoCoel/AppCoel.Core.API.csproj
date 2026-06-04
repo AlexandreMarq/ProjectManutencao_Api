@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\AppCoel.Core.Contracts\AppCoel.Core.Contracts.csproj" />
+    <ProjectReference Include="..\..\AppCoel.Core.Controllers.General\AppCoel.Core.Controllers.General.csproj" />
+    <ProjectReference Include="..\..\AppCoel.Core.Infra.AI\AppCoel.Core.Infra.AI.csproj" />
+    <ProjectReference Include="..\..\AppCoel.Core.Infra.Database\AppCoel.Core.Infra.Database.csproj" />
+    <ProjectReference Include="..\..\AppCoel.Core.Infra.EMail\AppCoel.Core.Infra.EMail.csproj" />
+    <ProjectReference Include="..\..\AppCoel.Core.Infra.Jobs\AppCoel.Core.Infra.Jobs.csproj" />
+    <ProjectReference Include="..\..\AppCoel.Core.Services.General\AppCoel.Core.Services.General.csproj" />
+    <ProjectReference Include="..\..\AppCoel.Core.Services\AppCoel.Core.Services.csproj" />
+    <ProjectReference Include="..\..\AppCoel.Resources\AppCoel.Resources.csproj" />
+    <ProjectReference Include="..\..\AppCoel.Utils\AppCoel.Utils.csproj" />
+  </ItemGroup>
+
+</Project>

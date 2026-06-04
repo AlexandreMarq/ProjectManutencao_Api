@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AppCoel.Core.Models.General\AppCoel.Core.Models.General.csproj" />
+    <ProjectReference Include="..\AppCoel.Core.Services\AppCoel.Core.Services.csproj" />
+    <ProjectReference Include="..\AppCoel.Utils\AppCoel.Utils.csproj" />
+  </ItemGroup>
+</Project>
