@@ -39,8 +39,12 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 1,
           "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{c6f34f0d-7ae5-4f3a-be61-fe0c21ae9eb8}"
+            },
             {
               "$type": "Document",
               "DocumentIndex": 0,
@@ -49,7 +53,7 @@
               "RelativeDocumentMoniker": "IntegracaoCoel\\Bootstraps\\Bootstrap.cs",
               "ToolTip": "C:\\Users\\alexa\\OneDrive\\\u00C1rea de Trabalho\\Coel\\ProjectManutencao_Api\\1 - Backend\\IntegracaoCoel\\IntegracaoCoel\\Bootstraps\\Bootstrap.cs",
               "RelativeToolTip": "IntegracaoCoel\\Bootstraps\\Bootstrap.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAUwCIAAAAmAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAUwBEAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-06-04T22:41:59.875Z",
               "EditorCaption": ""
