@@ -6,11 +6,14 @@ using AppCoel.Core.Infra.Database.Mapper;
 using AppCoel.Core.Services;
 using AppCoel.Exceptions;
 using Mapster;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using System.Globalization;
 using System.Reflection;
+using System.Security.Claims;
 
 namespace AppCoel.Core.API.Bootstraps
 {
@@ -19,9 +22,6 @@ namespace AppCoel.Core.API.Bootstraps
         public static WebApplicationBuilder AddApiServices(this WebApplicationBuilder builder)
         {
             var mvcBuilder = builder.Services.AddControllers();
-
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
 
             ConfigControllers(mvcBuilder);
             ConfigLocalization(builder, mvcBuilder);
@@ -35,6 +35,8 @@ namespace AppCoel.Core.API.Bootstraps
             ConfigUsers(builder);
             ConfigMapper(builder);
             ConfigDatabase(builder);
+            ConfigAuthentication(builder);
+            ConfigSwagger(builder);
 
             return builder;
         }
@@ -45,12 +47,34 @@ namespace AppCoel.Core.API.Bootstraps
 
             if (app.Environment.IsDevelopment())
             {
+                app.MapOpenApi();
+
                 app.UseSwagger();
-                app.UseSwaggerUI();
+                app.UseSwaggerUI(c =>
+                {
+                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "API v1");
+
+                    var auth0Options = new Auth0Options();
+                    app.Configuration.GetSection("Auth0").Bind(auth0Options);
+
+                    c.OAuthClientId(auth0Options.ClientId);
+                    c.OAuthAppName("API - Swagger");
+                    c.OAuthUsePkce();
+                    c.OAuthScopeSeparator(" ");
+
+                    c.OAuthScopes("openid", "profile", "email", "offline_access");
+
+                    c.OAuthAdditionalQueryStringParams(new Dictionary<string, string>
+                    {
+                        { "audience", auth0Options.Audience }
+                    });
+                });
             }
 
             app.UseMiddleware<ExceptionMiddlewares>();
             app.UseHttpsRedirection();
+            app.UseAuthentication();
+            app.UseAuthorization();
             app.MapControllers();
 
             return app;
@@ -180,6 +204,105 @@ namespace AppCoel.Core.API.Bootstraps
                 );
         }
 
+        private static void ConfigAuthentication(WebApplicationBuilder builder)
+        {
+            builder.Services.AddAuthentication();
+
+            var auth0Options = new Auth0Options();
+            builder.Configuration.GetSection("Auth0").Bind(auth0Options);
+
+            var authority = auth0Options.Authority;
+            var audience = auth0Options.Audience;
+
+            if (string.IsNullOrEmpty(authority) || string.IsNullOrEmpty(audience) )
+            {
+                throw new ArgumentException("Auth- configuration is not set properly.");
+            }
+            builder.Services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
+            {
+                options.Authority = authority;
+                options.Audience = audience;
+
+                options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = authority,
+                    ValidateAudience = true,
+                    ValidAudience = audience,
+                    ValidateLifetime = true,
+                    NameClaimType = ClaimTypes.NameIdentifier
+                };
+            });
+        }
+
+        private static void ConfigSwagger(WebApplicationBuilder builder)
+        {
+            builder.Services.AddOpenApi();
+            var auth0Options = new Auth0Options();
+            builder.Configuration.GetSection("Auth0").Bind(auth0Options);
+
+            var authority = auth0Options.Authority;
+
+            if (string.IsNullOrWhiteSpace(authority))
+            {
+                throw new ArgumentException("Auth0 configurantion is not set properly.");
+            }
+
+            builder.Services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Title = "Api Coel",
+                    Version = "v1"
+                });
+
+                c.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
+                {
+                    Type = SecuritySchemeType.OAuth2,
+                    Flows = new OpenApiOAuthFlows
+                    {
+                        AuthorizationCode = new OpenApiOAuthFlow
+                        {
+                            AuthorizationUrl = new Uri($"{auth0Options.Authority}/authorize"),
+                            TokenUrl = new Uri($"{auth0Options.Authority}/oauth/token"),
+                            Scopes = new Dictionary<string, string>
+                        {
+                            { "openid", "OpenID" },
+                            { "profile", "Profile" },
+                            { "email", "Email" },
+                            { "offline_access", "Offline Access" }
+                        }
+                        }
+                    },
+                    In = ParameterLocation.Header,
+                    Name = "Authorization",
+                    Scheme = "Bearer",
+                    BearerFormat = "JWT",
+                    Description = "OAuth2 with Auth0"
+                });
+
+                c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "oauth2"
+                            }
+                        },
+                        new[] { "openid", "profile", "email", "offline_access" }
+                    }
+                });
+            });
+        }
+
         private static IEnumerable<Assembly> GetControllerAssemblies() =>
             [
                 Assembly.Load("AppCoel.Core.Controllers.General"),
@@ -194,6 +317,13 @@ namespace AppCoel.Core.API.Bootstraps
         private class ConnectionStringsOptions
         {
             public string? DatabaseConnection { get; set; }
+        }
+
+        private class Auth0Options
+        {
+            public string? Authority { get; set; }
+            public string? ClientId { get; set; }
+            public string? Audience { get; set; }
         }
     }
 }

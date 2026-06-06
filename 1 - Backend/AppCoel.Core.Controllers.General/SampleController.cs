@@ -3,6 +3,7 @@ using AppCoel.Core.Models.General;
 using AppCoel.Exceptions;
 using AppCoel.Models;
 using AppCoel.Resources;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AppCoel.Core.Controllers.General
@@ -33,6 +34,13 @@ namespace AppCoel.Core.Controllers.General
         public IActionResult PostSample([FromBody] CreateOrUpdateRequest<SampleDto> request)
         {
             return this.Ok();
+        }
+
+        [Authorize]
+        [HttpGet]
+        public IActionResult GetProtectedData()
+        {
+            return this.Ok("This is a protected data.");
         }
     }
 }
