@@ -27,8 +27,8 @@
     <Project Path="../AppCoel.Core.Controllers.General/AppCoel.Core.Controllers.General.csproj" Id="5eb8e455-0265-40ea-a47d-2cd43c4d88d8" />
     <Project Path="IntegracaoCoel/AppCoel.Core.API.csproj" />
   </Folder>
-  <Folder Name="/3 - Tests/">
+  <Folder Name="/2 - Tests/">
     <Project Path="../../3 - Tests/AppCoel.Core.Tests.General/AppCoel.Core.Tests.General.csproj" Id="7f4e0359-ed7d-4460-b50e-112f8cc81888" />
-    <Project Path="../../3 - Tests/AppCoel.Core.Tests/AppCoel.Core.Tests.csproj" Id="b11044be-51c4-428e-8512-d4632696747b" />
+    <Project Path="../../3 - Tests/AppCoel.Core.Tests/AppCoel.Core.Tests.csproj" Id="f434ff39-0eed-495a-ad5f-0231f3ab0ad1" />
   </Folder>
 </Solution>
