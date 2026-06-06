@@ -31,7 +31,7 @@ namespace AppCoel.Core.API.Middlewares
                         await this.HandleExceptionAsync(context, exception.ExceptionCode, httpStatusCode: HttpStatusCode.Unauthorized);
                         return;
                     case ExceptionCode.RequestValidation:
-                        await this.HandleExceptionAsync(context, exception.ExceptionCode, exception.AdditionalInfo);
+                        await this.HandleExceptionAsync(context, exception.ExceptionCode, exception.AdditionalInfo, httpStatusCode: HttpStatusCode.BadRequest);
                         return;
                 }
 

@@ -1,7 +1,9 @@
 ﻿using AppCoel.Core.API.Middlewares;
 using Microsoft.AspNetCore.Localization;
+using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
 using System.Reflection;
+using AppCoel.Exceptions;
 
 namespace AppCoel.Core.API.Bootstraps
 {
@@ -17,6 +19,11 @@ namespace AppCoel.Core.API.Bootstraps
             ConfigControllers(mvcBuilder);
 
             ConfigLocalization(builder, mvcBuilder);
+
+            builder.Services.Configure<ApiBehaviorOptions>(options =>
+            {
+                ConfigValidations(options);
+            });
 
             return builder;
         }
@@ -64,6 +71,20 @@ namespace AppCoel.Core.API.Bootstraps
                     new AcceptLanguageHeaderRequestCultureProvider()
                 };
             });
+        }
+
+        private static void ConfigValidations(ApiBehaviorOptions options)
+        {
+            options.InvalidModelStateResponseFactory = context =>
+            {
+                var modelErros = context.ModelState
+                .Where(e => e.Value?.Errors.Count > 0)
+                .SelectMany(e => e.Value!.Errors.Select(er => er.ErrorMessage));
+
+                var erros = modelErros.Any() ? string.Join(" ", modelErros) : null;
+
+                throw new AppException(ExceptionCode.RequestValidation, erros);
+            };
         }
 
         private static IEnumerable<Assembly> GetControllerAssemblies() =>
