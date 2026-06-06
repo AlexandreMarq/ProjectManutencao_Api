@@ -28,6 +28,12 @@ namespace AppCoel.Core.Controllers.General
         {
             throw new AppException(ExceptionCode.Generic, "This is a  sample exception for testing purposes.");
         }
+
+        [HttpPost]
+        public IActionResult PostSample([FromBody] CreateOrUpdateRequest<SampleDto> request)
+        {
+            return this.Ok();
+        }
     }
 }
 #endif
