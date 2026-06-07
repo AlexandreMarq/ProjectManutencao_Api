@@ -8,6 +8,8 @@ using AppCoel.Core.Services;
 using AppCoel.Exceptions;
 using Mapster;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Cors.Infrastructure;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,11 +19,13 @@ using Serilog;
 using System.Globalization;
 using System.Reflection;
 using System.Security.Claims;
+using System.Threading.RateLimiting;
 
 namespace AppCoel.Core.API.Bootstraps
 {
     public static class Bootstrap
     {
+        private const string DefaultCorsPolicyName = "DefaultCorsPolicy";
         public static WebApplicationBuilder AddApiServices(this WebApplicationBuilder builder)
         {
             var mvcBuilder = builder.Services.AddControllers();
@@ -42,6 +46,8 @@ namespace AppCoel.Core.API.Bootstraps
             ConfigSwagger(builder);
             ConfigCache(builder);
             ConfigLog(builder);
+            ConfigCors(builder);
+            ConfigRateLimiting(builder);
 
             return builder;
         }
@@ -75,9 +81,25 @@ namespace AppCoel.Core.API.Bootstraps
                     });
                 });
             }
+            else
+            {
+                app.UseHsts();
+            }
+            app.Use(async (context, next) =>
+            {
+                context.Response.Headers.XContentTypeOptions = "nosniff";
+                context.Response.Headers.XFrameOptions = "DENY";
+                context.Response.Headers.XXSSProtection = "1; mode=block";
+                context.Response.Headers["Referrer-Policy"] = "no-referrer";
+                context.Response.Headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()";
+
+                await next();
+            });
 
             app.UseMiddleware<ExceptionMiddlewares>();
             app.UseHttpsRedirection();
+            app.UseCors(DefaultCorsPolicyName);
+            app.UseRateLimiter();
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();
@@ -378,6 +400,53 @@ namespace AppCoel.Core.API.Bootstraps
             // Can configure Application Insights
         }
 
+        private static void ConfigCors(WebApplicationBuilder builder)
+        {
+            var corsOptions = new CorsOptions();
+            builder.Configuration.GetSection("Cors").Bind(corsOptions);
+
+            if (corsOptions.AllowedOrigins?.Any() == false)
+            {
+                throw new ArgumentException("CORS allowed origins are not configured.");
+            }
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy(DefaultCorsPolicyName, policy =>
+                {
+                    policy.WithOrigins(corsOptions?.AllowedOrigins ?? Array.Empty<string>())
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
+                });
+            });
+        }
+
+        private static void ConfigRateLimiting(WebApplicationBuilder builder)
+        {
+            var rateOptions = new RateLimitingOptions();
+            builder.Configuration.GetSection("RateLimiting").Bind(rateOptions);
+
+            if (rateOptions.PermitLimit <= 0 || rateOptions.WindowSeconds <= 0 || rateOptions.QueueLimit < 0)
+            {
+                throw new ArgumentException("Rate limiting options are not configured properly.");
+            }
+
+            builder.Services.AddRateLimiter(options =>
+            {
+                options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = rateOptions.PermitLimit,
+                            Window = TimeSpan.FromSeconds(rateOptions.WindowSeconds),
+                            QueueLimit = rateOptions.QueueLimit,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+                        }
+                    ));
+            });
+        }
+
         private static IEnumerable<Assembly> GetControllerAssemblies() =>
             [
                 Assembly.Load("AppCoel.Core.Controllers.General"),
@@ -404,6 +473,18 @@ namespace AppCoel.Core.API.Bootstraps
         {
             public string? Name { get; set; }
             public string? Email { get; set; }
+        }
+
+        private class CorsOptions
+        {
+            public string[] AllowedOrigins { get; set; } = Array.Empty<string>();
+        }
+
+        private class RateLimitingOptions
+        {
+            public int PermitLimit { get; set; }
+            public int WindowSeconds { get; set; }
+            public int QueueLimit { get; set; }
         }
     }
 }
