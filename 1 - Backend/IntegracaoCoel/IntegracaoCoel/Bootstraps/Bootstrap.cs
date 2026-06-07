@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.OpenApi.Models;
+using Serilog;
 using System.Globalization;
 using System.Reflection;
 using System.Security.Claims;
@@ -40,6 +41,7 @@ namespace AppCoel.Core.API.Bootstraps
             ConfigAuthentication(builder);
             ConfigSwagger(builder);
             ConfigCache(builder);
+            ConfigLog(builder);
 
             return builder;
         }
@@ -79,6 +81,7 @@ namespace AppCoel.Core.API.Bootstraps
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();
+            app.UseMiddleware<SerilogUserEnricherMiddleware>();
 
             return app;
         }
@@ -361,6 +364,18 @@ namespace AppCoel.Core.API.Bootstraps
             builder.Services.AddHybridCache();
 
             // Can confiigura IDistributedCache here if needed and connect with Redis or other cache providers.
+        }
+
+        private static void ConfigLog(WebApplicationBuilder builder)
+        {
+            Log.Logger = new LoggerConfiguration()
+                .ReadFrom.Configuration(builder.Configuration)
+                .Enrich.FromLogContext()
+                .CreateLogger();
+
+            builder.Logging.AddSerilog(Log.Logger);
+
+            // Can configure Application Insights
         }
 
         private static IEnumerable<Assembly> GetControllerAssemblies() =>

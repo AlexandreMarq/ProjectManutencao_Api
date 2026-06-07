@@ -6,12 +6,13 @@ using AppCoel.Models;
 using AppCoel.Resources;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace AppCoel.Core.Controllers.General
 {
     [Route("api/general/[controller]/[action]")]
     [ApiController]
-    public class SampleController(IUserContext userContext) : ControllerBase
+    public class SampleController(IUserContext userContext, ILogger<SampleController> logger) : ControllerBase
     {
         [HttpGet]
         public IActionResult GetSample()
@@ -54,6 +55,15 @@ namespace AppCoel.Core.Controllers.General
             var message = $"Current user email: {currentUser.Email} " + $"System user email: {systemAdminUser.Email}";
 
             return this.Ok(message);
+        }
+
+        [HttpGet]
+        public string GetLogSample()
+        {
+            var logMassage = "This is a sample log message";
+            logger.LogInformation(logMassage);
+
+            return logMassage;
         }
     }
 }
