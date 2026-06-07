@@ -1,4 +1,5 @@
 ﻿#if DEBUG
+using AppCoel.Core.Contracts;
 using AppCoel.Core.Models.General;
 using AppCoel.Exceptions;
 using AppCoel.Models;
@@ -10,7 +11,7 @@ namespace AppCoel.Core.Controllers.General
 {
     [Route("api/general/[controller]/[action]")]
     [ApiController]
-    public class SampleController : ControllerBase
+    public class SampleController(IUserContext userContext) : ControllerBase
     {
         [HttpGet]
         public IActionResult GetSample()
@@ -41,6 +42,18 @@ namespace AppCoel.Core.Controllers.General
         public IActionResult GetProtectedData()
         {
             return this.Ok("This is a protected data.");
+        }
+
+        [Authorize]
+        [HttpGet]
+        public async Task<IActionResult> GetCurrentEmailAsync(CancellationToken cancellationToken = default)
+        {
+            var currentUser = await userContext.GetCurrentUserAsync(cancellationToken);
+            var systemAdminUser = await userContext.GetSystemAdminUserAsync(cancellationToken);
+
+            var message = $"Current user email: {currentUser.Email} " + $"System user email: {systemAdminUser.Email}";
+
+            return this.Ok(message);
         }
     }
 }

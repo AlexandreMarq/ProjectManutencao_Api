@@ -2,6 +2,7 @@
 using AppCoel.Core.API.Middlewares;
 using AppCoel.Core.Contracts;
 using AppCoel.Core.Infra.Database;
+using AppCoel.Core.Infra.Database.Entities.Auth;
 using AppCoel.Core.Infra.Database.Mapper;
 using AppCoel.Core.Services;
 using AppCoel.Exceptions;
@@ -89,6 +90,53 @@ namespace AppCoel.Core.API.Bootstraps
             await applicationDbContext.Database.MigrateAsync();
         }
 
+        public static async Task CreateOrUpdateSystemAdminUserAsync(this WebApplication app)
+        {
+            using var scope = app.Services.CreateScope();
+            var applicationDbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var systemAdminUserOptions = new SystemAdminUserOptions();
+            app.Configuration.GetSection("SystemAdminUser").Bind(systemAdminUserOptions);
+
+            if (string.IsNullOrWhiteSpace(systemAdminUserOptions.Name) || string.IsNullOrWhiteSpace(systemAdminUserOptions.Email))
+            {
+                throw new ArgumentException("SystemAdminUser configuration is not set properly.");
+            }
+
+            var user = await applicationDbContext.Users.FirstOrDefaultAsync(u => u.IsSystemAdmin);
+
+            if (user == null)
+            {
+                var adminUserId = Guid.NewGuid();
+
+                user = new TbUser
+                {
+                    Id = adminUserId,
+                    Name = systemAdminUserOptions.Name,
+                    Email = systemAdminUserOptions.Email,
+                    IsSystemAdmin = true,
+                    CreatedAt = DateTime.Now,
+                    CreatedByUserId = adminUserId,
+                    CreatedByUserName = systemAdminUserOptions.Name!
+                };
+
+                applicationDbContext.Users.Add(user);
+                await applicationDbContext.SaveChangesAsync();
+            }
+            else if (user.Name != systemAdminUserOptions.Name || user.Email != systemAdminUserOptions.Email)
+            {
+                user.Name = systemAdminUserOptions.Name!;
+                user.Email = systemAdminUserOptions.Email!;
+                user.UpdatedAt = DateTime.Now;
+                user.UpdatedByUserId = user.Id;
+                user.UpdatedByUserName = systemAdminUserOptions.Name!;
+
+                applicationDbContext.Users.Update(user);
+                await applicationDbContext.SaveChangesAsync();
+            }
+            
+        }
+
         private static void ConfigControllers(IMvcBuilder mvcBuilder)
         {
             foreach (var asembly in GetControllerAssemblies())
@@ -158,6 +206,7 @@ namespace AppCoel.Core.API.Bootstraps
         private static void ConfigUsers(WebApplicationBuilder builder)
         {
             builder.Services.AddScoped<IUserContext, UserContext>();
+            builder.Services.AddHttpContextAccessor();
         }
 
         private static void ConfigMapper(WebApplicationBuilder builder)
@@ -268,7 +317,7 @@ namespace AppCoel.Core.API.Bootstraps
                     {
                         AuthorizationCode = new OpenApiOAuthFlow
                         {
-                            AuthorizationUrl = new Uri($"{auth0Options.Authority}/authorize"),
+                            AuthorizationUrl = new Uri($"{auth0Options.Authority}/authorize?prompt=login"),
                             TokenUrl = new Uri($"{auth0Options.Authority}/oauth/token"),
                             Scopes = new Dictionary<string, string>
                         {
@@ -324,6 +373,12 @@ namespace AppCoel.Core.API.Bootstraps
             public string? Authority { get; set; }
             public string? ClientId { get; set; }
             public string? Audience { get; set; }
+        }
+        
+        private class SystemAdminUserOptions
+        {
+            public string? Name { get; set; }
+            public string? Email { get; set; }
         }
     }
 }

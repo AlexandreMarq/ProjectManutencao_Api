@@ -7,7 +7,8 @@ builder.AddApiServices();
 var app = builder.Build();
 
 // Utilizado para iniciar o banco de dados e criar tabelas
-//await app.InitializeDatabaseAsync();
+await app.InitializeDatabaseAsync();
+await app.CreateOrUpdateSystemAdminUserAsync();
 
 app.UseApiPipeline();
 

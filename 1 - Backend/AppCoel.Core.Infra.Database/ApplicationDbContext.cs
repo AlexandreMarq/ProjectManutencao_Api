@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using AppCoel.Core.Infra.Database.Entities.Auth;
+using Microsoft.EntityFrameworkCore;
 
 namespace AppCoel.Core.Infra.Database
 {
@@ -8,7 +9,9 @@ namespace AppCoel.Core.Infra.Database
         {
 
         }
+
         // Dbsets for your entities
+        public DbSet<TbUser> Users { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

@@ -1,16 +1,104 @@
 ﻿using AppCoel.Core.Contracts;
+using AppCoel.Core.Infra.Database;
+using AppCoel.Core.Infra.Database.Entities.Auth;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace AppCoel.Core.API.Auth
 {
-    public class UserContext : IUserContext
+    public class UserContext(IHttpContextAccessor httpContextAccessor, ApplicationDbContext applicationDbContext) : IUserContext
     {
-        public Task<UserInfo> GetSystemAdminUserAsync(CancellationToken cancellationToken = default)
+        private UserInfo? currentUser;
+        public async Task<UserInfo> GetSystemAdminUserAsync(CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
+            var user = await applicationDbContext.Users.FirstOrDefaultAsync(u => u.IsSystemAdmin, cancellationToken);
+
+            if (user is null)
+            {
+                throw new InvalidOperationException("System admin user nor found");
+            }
+
+            return new UserInfo
+            {
+                UserId = user.Id,
+                UserName = user.Name,
+                Email = user.Email,
+                IsSystemAdmin = true
+            };       
         }
-        public Task<UserInfo> GetCurrentUserAsync(CancellationToken cancellationToken = default)
+        public async Task<UserInfo> GetCurrentUserAsync(CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
+            if (this.currentUser != null)
+            {
+                return this.currentUser;
+            }
+
+            var systemAdminUser = await this.GetSystemAdminUserAsync(cancellationToken);
+            var claimsPrincipal = httpContextAccessor.HttpContext?.User;
+
+            if (claimsPrincipal?.Identity?.IsAuthenticated == true)
+            {
+                var name = claimsPrincipal.FindFirstValue("name");
+                var email = claimsPrincipal.FindFirstValue(ClaimTypes.Email) ?? claimsPrincipal.FindFirstValue("email");
+
+                if (string.IsNullOrEmpty(email))
+                {
+                    throw new InvalidOperationException();
+                }
+
+                if (email == systemAdminUser.Email)
+                {
+                    this.currentUser = systemAdminUser;
+                    return this.currentUser;
+                }
+
+                if (string.IsNullOrEmpty(name))
+                {
+                    name = email;
+                }
+
+                var user = await applicationDbContext.Users.FirstOrDefaultAsync(u => u.Name == name, cancellationToken);
+
+                if (user == null)
+                {
+                    user = new TbUser
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = name,
+                        Email = email,
+                        IsSystemAdmin = false,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedByUserId = systemAdminUser.UserId,
+                        CreatedByUserName = systemAdminUser.UserName
+                    };
+
+                    applicationDbContext.Users.Add(user);
+                    await applicationDbContext.SaveChangesAsync();
+                }
+                else if (user.Name == name)
+                {
+                    user.Name = name;
+
+                    applicationDbContext.Users.Update(user);
+                    await applicationDbContext.SaveChangesAsync();
+                }
+
+                this.currentUser = new UserInfo
+                {
+                    UserId = user.Id,
+                    UserName = name,
+                    Email = user.Email,
+                    IsSystemAdmin = user.IsSystemAdmin
+                };
+
+                return this.currentUser;
+            }
+            else
+            {
+                // Not Authenticated, return system admin user as fallback
+                this.currentUser = systemAdminUser;
+                return this.currentUser;
+            }
         }
     }
 }
