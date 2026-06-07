@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.OpenApi.Models;
 using System.Globalization;
 using System.Reflection;
@@ -38,6 +39,7 @@ namespace AppCoel.Core.API.Bootstraps
             ConfigDatabase(builder);
             ConfigAuthentication(builder);
             ConfigSwagger(builder);
+            ConfigCache(builder);
 
             return builder;
         }
@@ -134,7 +136,9 @@ namespace AppCoel.Core.API.Bootstraps
                 applicationDbContext.Users.Update(user);
                 await applicationDbContext.SaveChangesAsync();
             }
-            
+
+            var hybridCache = scope.ServiceProvider.GetRequiredService<HybridCache>();
+            await hybridCache.RemoveAsync(CacheKeys.SystemAdminUserKeys);
         }
 
         private static void ConfigControllers(IMvcBuilder mvcBuilder)
@@ -352,6 +356,13 @@ namespace AppCoel.Core.API.Bootstraps
             });
         }
 
+        private static void ConfigCache(WebApplicationBuilder builder)
+        {
+            builder.Services.AddHybridCache();
+
+            // Can confiigura IDistributedCache here if needed and connect with Redis or other cache providers.
+        }
+
         private static IEnumerable<Assembly> GetControllerAssemblies() =>
             [
                 Assembly.Load("AppCoel.Core.Controllers.General"),
@@ -374,7 +385,6 @@ namespace AppCoel.Core.API.Bootstraps
             public string? ClientId { get; set; }
             public string? Audience { get; set; }
         }
-        
         private class SystemAdminUserOptions
         {
             public string? Name { get; set; }

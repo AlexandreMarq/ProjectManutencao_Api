@@ -2,29 +2,41 @@
 using AppCoel.Core.Infra.Database;
 using AppCoel.Core.Infra.Database.Entities.Auth;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
 using System.Security.Claims;
 
 namespace AppCoel.Core.API.Auth
 {
-    public class UserContext(IHttpContextAccessor httpContextAccessor, ApplicationDbContext applicationDbContext) : IUserContext
+    public class UserContext(IHttpContextAccessor httpContextAccessor, ApplicationDbContext applicationDbContext, HybridCache hybridCache) : IUserContext
     {
         private UserInfo? currentUser;
         public async Task<UserInfo> GetSystemAdminUserAsync(CancellationToken cancellationToken = default)
         {
-            var user = await applicationDbContext.Users.FirstOrDefaultAsync(u => u.IsSystemAdmin, cancellationToken);
+            var cachedUser = await hybridCache.GetOrCreateAsync(
+                
+                CacheKeys.SystemAdminUserKeys,
+                async token => await GetSystemAdminUserFromDatabaseAsync(token),
+                cancellationToken: cancellationToken);
 
-            if (user is null)
-            {
-                throw new InvalidOperationException("System admin user nor found");
-            }
+            return cachedUser;
 
-            return new UserInfo
+            async Task<UserInfo> GetSystemAdminUserFromDatabaseAsync(CancellationToken cancellationToken = default)
             {
-                UserId = user.Id,
-                UserName = user.Name,
-                Email = user.Email,
-                IsSystemAdmin = true
-            };       
+                var user = await applicationDbContext.Users.FirstOrDefaultAsync(u => u.IsSystemAdmin, cancellationToken);
+
+                if (user is null)
+                {
+                    throw new InvalidOperationException("System admin user nor found");
+                }
+
+                return new UserInfo
+                {
+                    UserId = user.Id,
+                    UserName = user.Name,
+                    Email = user.Email,
+                    IsSystemAdmin = true
+                };
+            }                 
         }
         public async Task<UserInfo> GetCurrentUserAsync(CancellationToken cancellationToken = default)
         {
